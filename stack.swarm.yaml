@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Export MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hostel_complaints}
+      MYSQL_USER: ${MYSQL_USER:-hostel_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Export MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - type: bind
+        source: ./database.sql
+        target: /docker-entrypoint-initdb.d/01-schema.sql
+        read_only: true
+    networks:
+      - hostel-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+
+  app:
+    image: hostelcare-app:1.0
+    ports:
+      - target: 80
+        published: 8081
+        protocol: tcp
+        mode: ingress
+    environment:
+      DB_HOST: db
+      DB_NAME: ${MYSQL_DATABASE:-hostel_complaints}
+      DB_USER: ${MYSQL_USER:-hostel_app}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Export MYSQL_PASSWORD}
+      APP_NAME: HostelCare
+    networks:
+      - hostel-net
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+volumes:
+  mysql_data:
+
+networks:
+  hostel-net:
+    driver: overlay
