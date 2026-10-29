@@ -93,3 +93,4 @@ docker stack rm hostelcare
 - Forms use CSRF tokens and output is escaped.
 - New public registrations always receive the student role; create admins only through the container CLI.
 - This is an educational project. For production, add HTTPS, rate limiting, audit logging, backups, and a dedicated least-privilege database account.
+# Hostel_Complaint_System_Enhanced
