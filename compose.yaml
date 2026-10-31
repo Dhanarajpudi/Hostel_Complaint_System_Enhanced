@@ -38,6 +38,8 @@ services:
 
 volumes:
   mysql_data:
+    external: true
+    name: hostelcare_mysql_data
 
 networks:
   hostel-net:
