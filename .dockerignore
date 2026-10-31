@@ -1,5 +1,6 @@
 .git
+.gitignore
 .env
+.env.*
 .DS_Store
-*.zip
-README.md
+*.pem
