@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -11,8 +12,8 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'HostelCare source code checked out from GitHub'
                 checkout scm
+                echo 'HostelCare source code checked out'
             }
         }
 
@@ -20,13 +21,11 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-
                     test -f Dockerfile
                     test -f compose.yaml
                     test -f database.sql
                     test -f index.php
-
-                    echo "Required project files verified"
+                    echo "Project validation successful"
                 '''
             }
         }
@@ -34,19 +33,12 @@ pipeline {
         stage('Validate Docker Compose') {
             steps {
                 withCredentials([
-                    string(
-                        credentialsId: 'hostelcare-mysql-root-password',
-                        variable: 'MYSQL_ROOT_PASSWORD'
-                    ),
-                    string(
-                        credentialsId: 'hostelcare-mysql-password',
-                        variable: 'MYSQL_PASSWORD'
-                    )
+                    string(credentialsId: 'hostelcare-mysql-root-password',
+                           variable: 'MYSQL_ROOT_PASSWORD'),
+                    string(credentialsId: 'hostelcare-mysql-password',
+                           variable: 'MYSQL_PASSWORD')
                 ]) {
-                    sh '''
-                        docker compose config --quiet
-                        echo "Docker Compose configuration is valid"
-                    '''
+                    sh 'docker compose config --quiet'
                 }
             }
         }
@@ -54,18 +46,12 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 withCredentials([
-                    string(
-                        credentialsId: 'hostelcare-mysql-root-password',
-                        variable: 'MYSQL_ROOT_PASSWORD'
-                    ),
-                    string(
-                        credentialsId: 'hostelcare-mysql-password',
-                        variable: 'MYSQL_PASSWORD'
-                    )
+                    string(credentialsId: 'hostelcare-mysql-root-password',
+                           variable: 'MYSQL_ROOT_PASSWORD'),
+                    string(credentialsId: 'hostelcare-mysql-password',
+                           variable: 'MYSQL_PASSWORD')
                 ]) {
-                    sh '''
-                        docker compose build app
-                    '''
+                    sh 'docker compose build app'
                 }
             }
         }
@@ -73,14 +59,10 @@ pipeline {
         stage('PHP Syntax Test') {
             steps {
                 withCredentials([
-                    string(
-                        credentialsId: 'hostelcare-mysql-root-password',
-                        variable: 'MYSQL_ROOT_PASSWORD'
-                    ),
-                    string(
-                        credentialsId: 'hostelcare-mysql-password',
-                        variable: 'MYSQL_PASSWORD'
-                    )
+                    string(credentialsId: 'hostelcare-mysql-root-password',
+                           variable: 'MYSQL_ROOT_PASSWORD'),
+                    string(credentialsId: 'hostelcare-mysql-password',
+                           variable: 'MYSQL_PASSWORD')
                 ]) {
                     sh '''
                         docker compose run --rm --no-deps app sh -c \
@@ -89,15 +71,49 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy with Docker Compose') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'hostelcare-mysql-root-password',
+                           variable: 'MYSQL_ROOT_PASSWORD'),
+                    string(credentialsId: 'hostelcare-mysql-password',
+                           variable: 'MYSQL_PASSWORD')
+                ]) {
+                    sh '''
+                        docker compose up -d --build
+                        docker compose ps
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Waiting for HostelCare application..."
+
+                    curl --fail --silent --show-error \
+                         --retry 12 --retry-delay 5 --retry-connrefused \
+                         http://localhost:8081/ \
+                         -o /dev/null
+
+                    echo "HostelCare application is responding successfully"
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'HostelCare CI pipeline completed successfully!'
+            echo 'HostelCare CI/CD deployment completed successfully!'
         }
 
         failure {
-            echo 'HostelCare CI pipeline failed. Check the console output.'
+            echo 'HostelCare pipeline failed. Check Console Output.'
         }
     }
 }
+
